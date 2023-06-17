@@ -1,4 +1,4 @@
-import { mat3, vec2 } from "gl-matrix";
+import { mat3, vec2, vec3 } from "gl-matrix";
 
 import fragmentShaderSource from "./fragmentShader.glsl";
 import vertexShaderSource from "./vertexShader.glsl";
@@ -57,6 +57,8 @@ const uniformResolution = uniformOf(
   "uniform2f"
 );
 
+const uniformColor = uniformOf(gl, program, "uniformColor", "uniform4f");
+
 const uniformModelViewMat3 = uniformOf(
   gl,
   program,
@@ -81,38 +83,62 @@ gl.useProgram(program);
 
 const tempModelViewMat3 = mat3.create();
 const mouseCoords = vec2.fromValues(0, 0);
-const updateTempModelViewMat3 = () => {
-  const scale = 100;
-
+const drawModelViewMat3 = (
+  x: number,
+  y: number,
+  scale: number,
+  rotate: number
+) => {
   mat3.identity(tempModelViewMat3);
-  mat3.translate(tempModelViewMat3, tempModelViewMat3, [
-    mouseCoords[0],
-    mouseCoords[1],
-  ]);
+  mat3.translate(tempModelViewMat3, tempModelViewMat3, [x, y]);
   mat3.scale(tempModelViewMat3, tempModelViewMat3, [scale, scale]);
-  mat3.rotate(
-    tempModelViewMat3,
-    tempModelViewMat3,
-    Math.PI * (mouseCoords[0] / 300)
-  );
+  mat3.rotate(tempModelViewMat3, tempModelViewMat3, rotate);
   mat3.translate(tempModelViewMat3, tempModelViewMat3, [-0.5, -0.5]);
   uniformModelViewMat3(false, tempModelViewMat3);
 
-  draw();
+  gl.drawArrays(gl.TRIANGLES, 0, tempBuffer.content.length / 2);
 };
+
+function setColor(code: number) {
+  uniformColor(
+    ((code & 0xff0000) >> 16) / 255,
+    ((code & 0x00ff00) >> 8) / 255,
+    (code & 0x0000ff) / 255,
+    1.0
+  );
+}
 
 attrPosition.bindBuffer(tempBuffer.buffer, "ARRAY_BUFFER");
 attrPosition.enable();
 
-updateTempModelViewMat3();
 {
   canvas.addEventListener("mousemove", function ({ x, y }) {
     vec2.set(mouseCoords, x, y);
-    updateTempModelViewMat3();
   });
 }
 
+const gameObjects = new Array(500).fill(0).map(() => {
+  return vec3.fromValues(Math.random(), Math.random(), Math.random());
+});
+
 function draw() {
   gl.clear(gl.COLOR_BUFFER_BIT);
-  gl.drawArrays(gl.TRIANGLES, 0, tempBuffer.content.length / 2);
+
+  for (let object of gameObjects) {
+    const x = object[0] * width;
+    const y = object[1] * height;
+    const scale = 55;
+
+    setColor(0x0f0f0f);
+    drawModelViewMat3(x, y, scale, object[2] * Math.PI * 2);
+    setColor(object[2] * 0xffffff);
+    drawModelViewMat3(x, y, scale - 5, object[2] * Math.PI * 2);
+  }
+
+  setColor(0xf0ff00);
+  drawModelViewMat3(mouseCoords[0], mouseCoords[1], 100, 0);
+
+  requestAnimationFrame(draw);
 }
+
+requestAnimationFrame(draw);
