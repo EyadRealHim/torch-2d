@@ -18,5 +18,5 @@ export default function createShader(
 
   const log = gl.getShaderInfoLog(shader);
   gl.deleteShader(shader);
-  throw log;
+  throw `Error While Compiling ${type}\n\n ${log}`;
 }

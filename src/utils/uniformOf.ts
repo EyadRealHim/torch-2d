@@ -17,9 +17,11 @@ export default function uniformOf<
     | "uniform4fv"
     | "uniform4i"
     | "uniform4iv"
+    | "uniformMatrix2fv"
+    | "uniformMatrix3fv"
+    | "uniformMatrix4fv"
 >(gl: WebGLRenderingContext, program: WebGLProgram, name: string, type: K) {
   const loc = gl.getUniformLocation(program, name);
-
   type SkipFirstElement<T> = T extends [infer _First, ...infer Rest]
     ? Rest
     : never;
