@@ -17,7 +17,5 @@ export default function createTexture(
 }
 
 export function defaultTextureCoords() {
-  return new Float32Array([
-    0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0,
-  ]);
+  return new Float32Array([0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1]);
 }

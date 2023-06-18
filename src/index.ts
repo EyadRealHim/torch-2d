@@ -1,22 +1,16 @@
-import { mat3, vec2, vec3 } from "gl-matrix";
+import createDrawImageProgram from "./drawImageProgram";
 
-import fragmentShaderSource from "./fragmentShader.glsl";
-import vertexShaderSource from "./vertexShader.glsl";
+import createTexture from "./utils/createTexture";
+import loadImage from "./utils/loadImage";
 
-import attributeOf from "./utils/attributeOf";
-import createBufferOf32Float from "./utils/createBufferOf32Float";
-import createProgram from "./utils/createProgram";
-import createShader from "./utils/createShader";
-import uniformOf from "./utils/uniformOf";
-
-// import createTexture from "./utils/createTexture";
-// import loadImage from "./utils/loadImage";
 const canvas = document.querySelector("canvas")!;
 const gl = canvas.getContext("webgl")!;
 
 if (!gl) throw new Error("Webgl isnt supported");
 
-// const torchTexture = createTexture(gl, await loadImage("assets/torch.png"));
+const brickTexture = createTexture(gl, await loadImage("assets/brick.jpeg"))!;
+if (!brickTexture) throw new Error("Failed.");
+
 let height: number = gl.canvas.height;
 let width: number = gl.canvas.width;
 
@@ -30,115 +24,62 @@ const resize = () => {
   width = isElem ? gl.canvas.clientWidth : gl.canvas.width;
 
   gl.viewport(0, 0, width, height);
-
-  uniformResolution(width, height);
 };
 
-const fragmentShader = createShader(
-  gl,
-  "FRAGMENT_SHADER",
-  fragmentShaderSource
+resize();
+
+const drawImage = createDrawImageProgram(gl);
+const offset: [number, number] = [width / 2, height / 2];
+const activeKeys: string[] = [];
+
+document.addEventListener(
+  "keydown",
+  (e) => !activeKeys.includes(e.key) && activeKeys.push(e.key)
 );
-const vertexShader = createShader(gl, "VERTEX_SHADER", vertexShaderSource);
-
-const program = createProgram(gl, [fragmentShader, vertexShader]);
-
-const tempBuffer = createBufferOf32Float(
-  gl,
-  [0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1],
-  "STATIC_DRAW",
-  "ARRAY_BUFFER"
+document.addEventListener("keyup", (e) =>
+  activeKeys.splice(activeKeys.indexOf(e.key), 1)
 );
 
-const uniformResolution = uniformOf(
-  gl,
-  program,
-  "uniformResolution",
-  "uniform2f"
-);
+function frame() {
+  const [x, y] = offset;
 
-const uniformColor = uniformOf(gl, program, "uniformColor", "uniform4f");
+  const hh = height / 2;
+  const hw = width / 2;
 
-const uniformModelViewMat3 = uniformOf(
-  gl,
-  program,
-  "uniformModelViewMat3",
-  "uniformMatrix3fv"
-);
+  const by = (hh - y) % height;
+  const bx = (hw - x) % width;
 
-const attrPosition = attributeOf(gl, program, "attrPosition", {
-  normalized: false,
-  type: "FLOAT",
-  offset: 0,
-  stride: 0,
-  size: 2,
-});
+  drawImage(brickTexture, bx, by, width, height);
+  drawImage(brickTexture, bx + width, by, width, height);
+  drawImage(brickTexture, bx - width, by, width, height);
 
-gl.useProgram(program);
+  drawImage(brickTexture, bx, by + height, width, height);
+  drawImage(brickTexture, bx + width, by + height, width, height);
+  drawImage(brickTexture, bx - width, by + height, width, height);
 
-{
-  window.addEventListener("resize", resize);
-  resize();
+  drawImage(brickTexture, bx, by - height, width, height);
+  drawImage(brickTexture, bx + width, by - height, width, height);
+  drawImage(brickTexture, bx - width, by - height, width, height);
+
+  doAction();
+
+  requestAnimationFrame(frame);
 }
 
-const tempModelViewMat3 = mat3.create();
-const mouseCoords = vec2.fromValues(0, 0);
-const drawModelViewMat3 = (
-  x: number,
-  y: number,
-  scale: number,
-  rotate: number
-) => {
-  mat3.identity(tempModelViewMat3);
-  mat3.translate(tempModelViewMat3, tempModelViewMat3, [x, y]);
-  mat3.scale(tempModelViewMat3, tempModelViewMat3, [scale, scale]);
-  mat3.rotate(tempModelViewMat3, tempModelViewMat3, rotate);
-  mat3.translate(tempModelViewMat3, tempModelViewMat3, [-0.5, -0.5]);
-  uniformModelViewMat3(false, tempModelViewMat3);
-
-  gl.drawArrays(gl.TRIANGLES, 0, tempBuffer.content.length / 2);
-};
-
-function setColor(code: number) {
-  uniformColor(
-    ((code & 0xff0000) >> 16) / 255,
-    ((code & 0x00ff00) >> 8) / 255,
-    (code & 0x0000ff) / 255,
-    1.0
-  );
-}
-
-attrPosition.bindBuffer(tempBuffer.buffer, "ARRAY_BUFFER");
-attrPosition.enable();
-
-{
-  canvas.addEventListener("mousemove", function ({ x, y }) {
-    vec2.set(mouseCoords, x, y);
-  });
-}
-
-const gameObjects = new Array(500).fill(0).map(() => {
-  return vec3.fromValues(Math.random(), Math.random(), Math.random());
-});
-
-function draw() {
-  gl.clear(gl.COLOR_BUFFER_BIT);
-
-  for (let object of gameObjects) {
-    const x = object[0] * width;
-    const y = object[1] * height;
-    const scale = 55;
-
-    setColor(0x0f0f0f);
-    drawModelViewMat3(x, y, scale, object[2] * Math.PI * 2);
-    setColor(object[2] * 0xffffff);
-    drawModelViewMat3(x, y, scale - 5, object[2] * Math.PI * 2);
+function doAction() {
+  const speed = 15;
+  if (activeKeys.includes("w")) {
+    offset[1] -= speed;
   }
-
-  setColor(0xf0ff00);
-  drawModelViewMat3(mouseCoords[0], mouseCoords[1], 100, 0);
-
-  requestAnimationFrame(draw);
+  if (activeKeys.includes("s")) {
+    offset[1] += speed;
+  }
+  if (activeKeys.includes("a")) {
+    offset[0] -= speed;
+  }
+  if (activeKeys.includes("d")) {
+    offset[0] += speed;
+  }
 }
 
-requestAnimationFrame(draw);
+requestAnimationFrame(frame);

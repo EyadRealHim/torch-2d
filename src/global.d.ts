@@ -1,5 +1,5 @@
 
 declare module "*.glsl" {
-  const contents: string;
-  export = contents;
+  const content: string;
+  export = content;
 }
