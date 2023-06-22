@@ -11,20 +11,12 @@ import { defaultTextureCoords } from "../utils/createTexture";
 import uniformOf from "../utils/uniformOf";
 
 export default function createDrawImageProgram(gl: WebGLRenderingContext) {
-  const fragmentShader = createShader(
-    gl,
-    "FRAGMENT_SHADER",
-    fragmentShaderSource
-  );
+  const fragmentShader = createShader(gl, "FRAGMENT_SHADER", fragmentShaderSource);
   const vertexShader = createShader(gl, "VERTEX_SHADER", vertexShaderSource);
 
   const drawImageProgram = createProgram(gl, [fragmentShader, vertexShader]);
 
-  const coords = createBufferOf32Float(
-    gl,
-    defaultTextureCoords(),
-    "STATIC_DRAW"
-  );
+  const coords = createBufferOf32Float(gl, defaultTextureCoords(), "STATIC_DRAW");
 
   const attrTexCoords = attributeOf(gl, drawImageProgram, "attrTexCoords", {
     normalized: false,
@@ -46,12 +38,10 @@ export default function createDrawImageProgram(gl: WebGLRenderingContext) {
     "uniformPositionMat4",
     "uniformMatrix4fv"
   );
-  const uniformTexture = uniformOf(
-    gl,
-    drawImageProgram,
-    "uniformTexture",
-    "uniform1i"
-  );
+  const uniformTexture = uniformOf(gl, drawImageProgram, "uniformTexture", "uniform1i");
+
+  attrTexCoords.enable();
+  attrPosition.enable();
 
   return function drawImage(
     texture: WebGLTexture,
@@ -64,25 +54,17 @@ export default function createDrawImageProgram(gl: WebGLRenderingContext) {
 
     gl.useProgram(drawImageProgram);
 
-    // Setup the attributes to pull data from our buffers
     attrPosition.bindBuffer(coords.buffer);
-    attrPosition.enable();
     attrTexCoords.bindBuffer(coords.buffer);
-    attrTexCoords.enable();
 
-    // this matrix will convert from pixels to clip space
     const positionMat4 = mat4.create();
     mat4.ortho(positionMat4, 0, gl.canvas.width, gl.canvas.height, 0, -1, 1);
     mat4.translate(positionMat4, positionMat4, [x, y, 0]);
     mat4.scale(positionMat4, positionMat4, [width, height, 1]);
 
-    // Set the matrix.
     uniformPositionMat4(false, positionMat4);
-
-    // Tell the shader to get the texture from texture unit 0
     uniformTexture(0);
 
-    // draw the quad (2 triangles, 6 vertices)
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   };
 }
